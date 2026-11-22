@@ -73,9 +73,15 @@ def validate_nq_view(view, files):
         raise ValueError('Raccord NQ incorrect')
     allowed = {'id', 'title', 'kind', 'series', 'markers', 'segments', 'zones', 'legend',
                'candles', 'cursorPeak', 'cursorPeaks', 'ytd', 'drawdowns', 'readouts',
-               'h4Splice', 'h4Lines', 'regimes', 'nqPrefixCutoff', 'nqRaster'}
+               'h4Splice', 'h4Lines', 'regimes', 'nqPrefixCutoff', 'nqRaster', 'referenceMark'}
     if set(price) - allowed or price['candles'][0][0] != cutoff:
         raise ValueError('Champ ou cotation NQ numérique interdit')
+    tick = price.get('referenceMark')
+    if tick is not None:
+        candles = price['candles']
+        if (len(candles) < 31 or set(tick) != {'date', 'value'} or
+                tick['date'] != candles[-1][0] or tick['value'] != candles[-31][4]):
+            raise ValueError('Repère H4 non confirmé par les bougies CFD publiques')
     prices = ([r[0] for r in price['candles']] + [r[0] for r in price['cursorPeaks']] +
               [r['date'] for r in price['markers']] + [r['date'] for r in price['drawdowns']] +
               [r[0] for line in price['h4Lines'] for r in [*line['ends'], *line['dots'], line['labelAt']]])
@@ -91,7 +97,7 @@ def validate_nq_view(view, files):
         raise ValueError('Cours ou moyennes NQ numériques interdits')
     calendar = json.loads(files[view['calendar']])
     index = 0
-    if calendar[0] != '2022-01-02T20:00:00Z':
+    if calendar[0] not in ('2021-01-03T20:00:00Z', '2022-01-02T20:00:00Z'):
         raise ValueError('Début du calendrier NQ incorrect')
     for tile in price['nqRaster']:
         validate_nq_raster(tile)
