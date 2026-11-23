@@ -20,7 +20,7 @@ SHELL = {'index.html', 'viewer.js', 'viewer.css', 'navigation.js', 'sw.js',
 FORBIDDEN = re.compile(rb'AWW_STRATEGY|AWW_PROPHET|AWW_EARLY|AWW_DATA|'
                        rb'function\s+indexSignals|function\s+cycleMetrics|'
                        rb'function\s+dcaIndications|createStepper|metricsProvider|'
-                       rb'sellMemory|buyMemory|sourceMappingURL|'
+                       rb'sellMemory|buyMemory|releaseAfterFinancialStop|sourceMappingURL|'
                        rb'github_pat_[A-Za-z0-9_]{20}|gh[pousr]_[A-Za-z0-9]{20}|'
                        rb'-----BEGIN .*PRIVATE KEY-----')
 
@@ -155,23 +155,30 @@ def validate(archive):
         if name.startswith('data/') and name != 'data/' + digest + '.json':
             raise ValueError('Nom de données incorrect')
     catalog = json.loads(files['catalog.json'])
-    # Keep legacy 15/21-view archives readable for coverage checks. The only
-    # authorized extension is the fourth Nasdaq H4 projection, for 22 views.
-    if catalog['schemaVersion'] != 1 or len(catalog['views']) not in (15, 21, 22):
+    # The two optional Nasdaq H4 result sets use identical public panel schemas.
+    if catalog['schemaVersion'] != 1 or len(catalog['views']) not in (15, 21, 22, 26):
         raise ValueError('Catalogue incorrect')
     has_regime = any(view.get('scenario') == 'aww' or view.get('id') == 'ndx-h4-aww'
                      for view in catalog['views'])
-    if len(catalog['views']) == 22 or has_regime:
+    if len(catalog['views']) in (22, 26) or has_regime:
         expected = {f'{index}-{tf}-{scenario}' for index in ('ndx', 'spx', 'dow')
                     for tf in ('daily', 'weekly') for scenario in ('sys1', 'classic')}
         expected |= {f'{index}-h4-{scenario}' for index in ('ndx', 'spx', 'dow')
                      for scenario in ('v', 'r', 'vr')}
         expected.add('ndx-h4-aww')
+        if len(catalog['views']) == 26:
+            expected |= {f'ndx-h4-{s}-alt' for s in ('v', 'r', 'vr', 'aww')}
         ids = [view.get('id') for view in catalog['views']]
-        if len(ids) != 22 or set(ids) != expected or len(ids) != len(set(ids)) or any(
-                view['id'] != '-'.join(str(view.get(key, '')) for key in ('index', 'tf', 'scenario'))
-                for view in catalog['views']):
+        if set(ids) != expected or len(ids) != len(set(ids)):
             raise ValueError('Vues publiques incorrectes')
+        for view in catalog['views']:
+            identity = '-'.join(str(view.get(key, '')) for key in ('index', 'tf', 'scenario'))
+            if 'variant' in view:
+                if view['variant'] is not True or view['index'] != 'ndx' or view['tf'] != 'h4':
+                    raise ValueError('Variante publique incorrecte')
+                identity += '-alt'
+            if view['id'] != identity:
+                raise ValueError('Vue publique incorrecte')
     for view in catalog['views']:
         for name in [view['calendar'], *view['panels']]:
             if not re.fullmatch(r'data/[a-f0-9]{64}\.json', name) or name not in files:
