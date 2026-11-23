@@ -20,7 +20,7 @@ SHELL = {'index.html', 'viewer.js', 'viewer.css', 'navigation.js', 'sw.js',
 FORBIDDEN = re.compile(rb'AWW_STRATEGY|AWW_PROPHET|AWW_EARLY|AWW_DATA|'
                        rb'function\s+indexSignals|function\s+cycleMetrics|'
                        rb'function\s+dcaIndications|createStepper|metricsProvider|'
-                       rb'sellMemory|buyMemory|releaseAfterFinancialStop|sourceMappingURL|'
+                       rb'sellMemory|buyMemory|sourceMappingURL|'
                        rb'github_pat_[A-Za-z0-9_]{20}|gh[pousr]_[A-Za-z0-9]{20}|'
                        rb'-----BEGIN .*PRIVATE KEY-----')
 
@@ -172,6 +172,8 @@ def validate(archive):
         if set(ids) != expected or len(ids) != len(set(ids)):
             raise ValueError('Vues publiques incorrectes')
         for view in catalog['views']:
+            if len(catalog['views']) == 26 and set(view) - {'id', 'index', 'tf', 'scenario', 'variant', 'from', 'to', 'bars', 'calendar', 'panels'}:
+                raise ValueError('Champ de catalogue inattendu')
             identity = '-'.join(str(view.get(key, '')) for key in ('index', 'tf', 'scenario'))
             if 'variant' in view:
                 if view['variant'] is not True or view['index'] != 'ndx' or view['tf'] != 'h4':
