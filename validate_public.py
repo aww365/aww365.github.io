@@ -51,12 +51,15 @@ def validate_nq_raster(tile):
     width = 6 * tile['count']
     if chunks[b'IHDR'] != struct.pack('>IIBBBBB', width, 512, 8, 3, 0, 0, 0):
         raise ValueError('Format raster NQ incorrect')
-    if len(chunks[b'PLTE']) != 21 or chunks[b'tRNS'] != b'\x00' or chunks[b'IEND']:
+    palette = chunks[b'PLTE']
+    if not (len(palette) == 21 or len(palette) == 24 and palette[21:] == bytes.fromhex('d33543')):
+        raise ValueError('Palette raster NQ incorrecte')
+    if chunks[b'tRNS'] != b'\x00' or chunks[b'IEND']:
         raise ValueError('Palette raster NQ incorrecte')
     size = (width + 1) * 512
     decoder = zlib.decompressobj()
     pixels = decoder.decompress(chunks[b'IDAT'], size + 1)
-    if len(pixels) != size or not decoder.eof or decoder.unused_data or max(pixels) > 6 or any(pixels[::width + 1]):
+    if len(pixels) != size or not decoder.eof or decoder.unused_data or max(pixels) >= len(palette) // 3 or any(pixels[::width + 1]):
         raise ValueError('Image NQ avec pixels invalides')
 
 
@@ -97,7 +100,7 @@ def validate_nq_view(view, files):
         raise ValueError('Cours ou moyennes NQ numériques interdits')
     calendar = json.loads(files[view['calendar']])
     index = 0
-    if calendar[0] not in ('2020-01-01T20:00:00Z', '2021-01-03T20:00:00Z', '2022-01-02T20:00:00Z'):
+    if calendar[0] not in ('2019-01-01T20:00:00Z', '2020-01-01T20:00:00Z', '2021-01-03T20:00:00Z', '2022-01-02T20:00:00Z'):
         raise ValueError('Début du calendrier NQ incorrect')
     for tile in price['nqRaster']:
         validate_nq_raster(tile)
