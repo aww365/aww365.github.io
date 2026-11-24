@@ -97,7 +97,7 @@ def validate_nq_view(view, files):
         raise ValueError('Cours ou moyennes NQ numériques interdits')
     calendar = json.loads(files[view['calendar']])
     index = 0
-    if calendar[0] not in ('2021-01-03T20:00:00Z', '2022-01-02T20:00:00Z'):
+    if calendar[0] not in ('2020-01-01T20:00:00Z', '2021-01-03T20:00:00Z', '2022-01-02T20:00:00Z'):
         raise ValueError('Début du calendrier NQ incorrect')
     for tile in price['nqRaster']:
         validate_nq_raster(tile)
