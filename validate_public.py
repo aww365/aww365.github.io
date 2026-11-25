@@ -101,7 +101,7 @@ def validate_nq_view(view, files):
         raise ValueError('Cours ou moyennes NQ numériques interdits')
     calendar = json.loads(files[view['calendar']])
     index = 0
-    if calendar[0] not in ('2017-01-02T20:00:00Z', '2019-01-01T20:00:00Z', '2020-01-01T20:00:00Z', '2021-01-03T20:00:00Z', '2022-01-02T20:00:00Z'):
+    if calendar[0] not in ('2016-01-03T20:00:00Z', '2017-01-02T20:00:00Z', '2019-01-01T20:00:00Z', '2020-01-01T20:00:00Z', '2021-01-03T20:00:00Z', '2022-01-02T20:00:00Z'):
         raise ValueError('Début du calendrier NQ incorrect')
     for tile in price['nqRaster']:
         validate_nq_raster(tile)
@@ -121,10 +121,10 @@ def validate_nq_view(view, files):
         annual = equity['h4AnnualReturns']
         years = list(range(int(calendar[0][:4]), int(calendar[-1][:4])))
         if (not isinstance(annual, list) or len(annual) != len(years) or
-                any(not isinstance(r, dict) or set(r) != {'year', 'values'} or r['year'] != year or
+                any(not isinstance(r, dict) or set(r) not in ({'year', 'values'}, {'year', 'values', 'benchmark'}) or r['year'] != year or
                     not isinstance(r['values'], list) or len(r['values']) != 2 or
                     any(v is not None and (type(v) not in (int, float) or not math.isfinite(v) or round(v, 1) != v)
-                        for v in r['values']) for year, r in zip(years, annual))):
+                        for v in [r.get('benchmark'), *r['values']]) for year, r in zip(years, annual))):
             raise ValueError('Rendements annuels H4 invalides')
     exact_from = equity.get('nqExactCapitalFrom')
     if not exact_from or not cutoff <= exact_from <= price['h4Splice'] or exact_from not in calendar:
